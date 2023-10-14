@@ -8,21 +8,11 @@
 #include <opencv2/opencv.hpp>
 #include "opencv2/core.hpp"
 #include "opencv2/core/utility.hpp"
-#include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/core/utility.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/videoio.hpp>
 
 #include "ipm.h"
 
 using namespace std;
 using namespace cv;
-
-// struct uchar3
-// {
-//     unsigned char x, y, z;
-// };
 
 #define UV_GRID_ROWS 2
 #define UV_GRID_COLS 524288
@@ -31,18 +21,25 @@ using namespace cv;
 #define OUT_IMAGE_HEIGHT 512
 uchar3 *aux;
 Mat outImage(OUT_IMAGE_HEIGHT, OUT_IMAGE_WIDTH, CV_8UC3, Scalar(0, 0, 0));
-static unsigned char imgBuffer[OUT_IMAGE_HEIGHT][OUT_IMAGE_WIDTH][3] = {0};
+
+std::string gstreamer_pipeline(int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method)
+{
+    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + std::to_string(capture_width) + ", height=(int)" +
+           std::to_string(capture_height) + ", framerate=(fraction)" + std::to_string(framerate) +
+           "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
+           std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=true sync=false";
+}
 
 int readArray(int *arr, const char *filename);
 void undistort(uchar3 *inImage, uchar3 *outImage, int *map_x, int *map_y);
 void warpImage(uchar3 *inImage, uchar3 *outImage, int *uGrid, int *vGrid);
 int loaduvGrid(int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS]);
-int loadMappingArrays(int map_x[UV_GRID_COLS],int map_y[UV_GRID_COLS]);
+int loadMappingArrays(int map_x[UV_GRID_COLS], int map_y[UV_GRID_COLS]);
 Mat warpImage(Mat inImage, int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS]);
 Mat createEmptyAlphaMat(int rows, int cols);
 void toUchar3(Mat frame, uchar3 *output, int width, int height);
 void toMat(uchar3 *input, Mat frame, int width, int height);
-void equ(uchar3 *inImage, uchar3 *outImage, int *map_x, int *map_y, int *uGrid, int *vGrid);
+void equ(int *map_x, int *map_y, int *uGrid, int *vGrid);
 int main()
 {
     uchar3 *input, *output, *output_calib;
@@ -50,12 +47,10 @@ int main()
     int *uGridCpu = new int[UV_GRID_COLS];
     int *vGridCpu = new int[UV_GRID_COLS];
 
-    cudaError_t err_x = cudaMallocManaged((void**)&input, 1920 * 1080 * sizeof(uchar3));
-    cudaError_t err_y = cudaMallocManaged((void**)&output, 1024 * 512 * sizeof(uchar3));
-    cudaError_t err_y1 = cudaMallocManaged((void**)&output_calib, 1920 * 1080 * sizeof(uchar3));
-    cudaError_t err_y2 = cudaMallocManaged((void**)&aux, 1920 * 1080 * sizeof(uchar3));
-    // cudaError_t err_output = cudaMallocManaged(&uGrid, UV_GRID_COLS * sizeof(int));
-    // cudaError_t err_output2 = cudaMallocManaged(&vGrid, UV_GRID_COLS * sizeof(int));
+    cudaError_t err_x = cudaMallocManaged((void **)&input, 1920 * 1080 * sizeof(uchar3));
+    cudaError_t err_y = cudaMallocManaged((void **)&output, 1024 * 512 * sizeof(uchar3));
+    cudaError_t err_y1 = cudaMallocManaged((void **)&output_calib, 1920 * 1080 * sizeof(uchar3));
+    cudaError_t err_y2 = cudaMallocManaged((void **)&aux, 1920 * 1080 * sizeof(uchar3));
 
     // // Check for errors
     if (err_x != cudaSuccess || err_y != cudaSuccess /*|| err_output != cudaSuccess || err_output2 != cudaSuccess*/)
@@ -64,92 +59,63 @@ int main()
         return 1; // or handle error appropriately
     }
 
-    Mat frame;
-    Mat outFrame;
-    //--- INITIALIZE VIDEOCAPTURE
-    VideoCapture cap;
-    // Load uv grid from file
-
-    //loaduvGrid(uGridCpu, vGridCpu);
-    loadMappingArrays(uGridCpu,vGridCpu);
+        // Load uv grid from file
+    loadMappingArrays(uGridCpu, vGridCpu);
 
     cudaMalloc((void **)&uGrid, UV_GRID_COLS * sizeof(int));
     cudaMemcpy(uGrid, uGridCpu, UV_GRID_COLS * sizeof(int), cudaMemcpyHostToDevice);
     cudaMalloc((void **)&vGrid, UV_GRID_COLS * sizeof(int));
     cudaMemcpy(vGrid, vGridCpu, UV_GRID_COLS * sizeof(int), cudaMemcpyHostToDevice);
 
-    /**************Delete*********/
 
-    // for (int i = 428; i <= 2617; i++)
-    // {
-    //     std::string filename = "imgs/frame" + std::to_string(i) + ".png"; // Assuming PNG format
-    //     frame = cv::imread(filename);
+    Mat frame;
+    Mat outFrame;
+    //--- INITIALIZE VIDEOCAPTURE
+    int capture_width = 1920;
+    int capture_height = 1080;
+    int display_width = 1920;
+    int display_height = 1080;
+    int framerate = 30;
+    int flip_method = 2;
 
-    //     if (frame.empty())
-    //     {
-    //         // std::cout << "Could not read image: " << filename << std::endl;
-    //         continue; // Skip this iteration if the image can't be read
-    //     }
-    //     toUchar3(frame, input, frame.cols, frame.rows);
-    //     warpImageK(input, output, uGrid, vGrid, frame.cols, frame.rows);
-    //     cudaDeviceSynchronize();
-    //     toMat(output, outImage, OUT_IMAGE_WIDTH, OUT_IMAGE_HEIGHT);
+    std::string pipeline = gstreamer_pipeline(capture_width,
+                                              capture_height,
+                                              display_width,
+                                              display_height,
+                                              framerate,
+                                              flip_method);
 
-    //     cv::imshow("Image", outImage);
-    //     cv::waitKey(1); // Wait for 1 ms, change this value as needed
-    // }
-
-    /**********************************/
-
-    Mat img = imread("images/calib.jpg", IMREAD_COLOR);
-    if (img.empty())
+    VideoCapture cap(pipeline, CAP_GSTREAMER);
+    
+    if (!cap.isOpened())
     {
-        std::cout << "Could not read the image: "
-                  << "path" << std::endl;
-        return 1;
+        std::cout << "Failed to open camera." << std::endl;
+        return (-1);
     }
-    toUchar3(img, input, img.cols, img.rows);
+    cv::namedWindow("CSI Camera", cv::WINDOW_AUTOSIZE);
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    //warpImageK(input, output, uGrid, vGrid, img.cols, img.rows);
-    //warpImageK(input, output, uGrid, vGrid, img.cols, img.rows);
-    //while(true){
-    // Record the start event
-    cudaEventRecord(start, 0);
+    std::cout << "Hit ESC to exit"
+              << "\n";
+    while (true)
+    {
+        if (!cap.read(frame))
+        {
+            std::cout << "Capture read error" << std::endl;
+            break;
+        }
+        toUchar3(frame, input, frame.cols, frame.rows);
+        warpImageK(input,output,uGrid,vGrid);
+        cudaDeviceSynchronize();
+        toMat(output, outImage, OUT_IMAGE_WIDTH, OUT_IMAGE_HEIGHT);
 
-    warpImageK(input, output, uGrid, vGrid, img.cols, img.rows);
+        cv::imshow("CSI Camera", outImage);
+        int keycode = cv::waitKey(10) & 0xff;
+        if (keycode == 27)
+            break;
+    }
 
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-
-    // Calculate the elapsed time in milliseconds
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-
-    printf("Elapsed time: %f ms\n", milliseconds);
-   // }
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
-    /***********Delete*/
-    // int *map_x = new int[1920 * 1080];
-    // int *map_y = new int[1920 * 1080];
-    // readArray(map_x, "files/map_x.bin");
-    // readArray(map_y, "files/map_y.bin");
-    // Mat outImageCalib(512, 1024, CV_8UC3, Scalar(0, 0, 0));
-    // //undistort(input, output_calib, map_x, map_y);
-    // warpImage(input, output, uGridCpu, vGridCpu);
-    // //equ(input, output, map_x, map_y, uGridCpu, vGridCpu);
-    // //cout << "After equ\n";
-    // toMat(output, outImageCalib, 1024, 512);
-    /****************/
-    cudaDeviceSynchronize();
-    toMat(output, outImage, OUT_IMAGE_WIDTH, OUT_IMAGE_HEIGHT);
-    imwrite("delete.png",outImage);
-    imshow("Display window", outImage);
-    int k = waitKey(0); // Wait for a keystroke in the window
+    cap.release();
+    cv::destroyAllWindows();
 
     cudaFree(input);
     cudaFree(output);
@@ -193,9 +159,10 @@ Mat warpImage(Mat inImage, int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS])
 
     return outImage;
 }
-int loadMappingArrays(int map_x[UV_GRID_COLS],int map_y[UV_GRID_COLS]){
-    std::ifstream infile_x("files/ipm_undist_x.bin", std::ios::binary);
-    std::ifstream infile_y("files/ipm_undist_y.bin", std::ios::binary);
+int loadMappingArrays(int map_x[UV_GRID_COLS], int map_y[UV_GRID_COLS])
+{
+    std::ifstream infile_x("mapping_arr/ipm_undist_x.bin", std::ios::binary);
+    std::ifstream infile_y("mapping_arr/ipm_undist_y.bin", std::ios::binary);
 
     if (!infile_x || !infile_y)
     {
@@ -332,40 +299,8 @@ int readArray(int *arr, const char *filename)
     infile.close();
     return 0;
 }
-void equ(uchar3 *inImage, uchar3 *outImage, int *map_x, int *map_y, int *uGrid, int *vGrid)
+void equ(int *map_x, int *map_y, int *uGrid, int *vGrid)
 {
-    // int ui, vi;
-    // for (int i = 0; i < 1080; ++i)
-    // {
-    //     for (int j = 0; j < 1920; ++j)
-    //     {
-    //         ui = map_x[i * 1920 + j];
-    //         vi = map_y[i * 1920 + j];
-    //         if (0 <= ui && ui < 1920 && 0 <= vi && vi < 1080)
-    //         {
-    //             aux[i * 1920 + j].x = inImage[vi * 1920 + ui].x;
-    //             aux[i * 1920 + j].y = inImage[vi * 1920 + ui].y;
-    //             aux[i * 1920 + j].z = inImage[vi * 1920 + ui].z;
-    //         }
-    //     }
-    // }
-
-    // for (int i = 0; i < 512; ++i) // height
-    // {
-    //     for (int j = 0; j < 1024; ++j) // width
-    //     {
-    //         ui = uGrid[i * 1024 + j];
-    //         vi = vGrid[i * 1024 + j];
-
-    //         if (ui >= 0 && ui <= 1920 && vi >= 0 && vi <= 1080)
-    //         {
-    //             outImage[i * 1024 + j].x = aux[vi * 1920 + ui].x;
-    //             outImage[i * 1024 + j].y = aux[vi * 1920 + ui].y;
-    //             outImage[i * 1024 + j].z = aux[vi * 1920 + ui].z;
-    //         }
-    //     }
-    // }
-
     int *final_uGrid = new int[512 * 1024];
     int *final_vGrid = new int[512 * 1024];
 
@@ -386,23 +321,6 @@ void equ(uchar3 *inImage, uchar3 *outImage, int *map_x, int *map_y, int *uGrid, 
             {
                 final_uGrid[i * 1024 + j] = -1;
                 final_vGrid[i * 1024 + j] = -1;
-            }
-        }
-    }
-    // Use the final mapping to transform image
-    for (int i = 0; i < 512; ++i) // height
-    {
-        for (int j = 0; j < 1024; ++j) // width
-        {
-            int ui = final_uGrid[i * 1024 + j];
-            int vi = final_vGrid[i * 1024 + j];
-
-            if (ui >= 0 && ui < 1920 && vi >= 0 && vi < 1080)
-            {
-                // cout << "ui: " << ui << " vi: " << vi << "\n";
-                outImage[i * 1024 + j].x = inImage[vi * 1920 + ui].x;
-                outImage[i * 1024 + j].y = inImage[vi * 1920 + ui].y;
-                outImage[i * 1024 + j].z = inImage[vi * 1920 + ui].z;
             }
         }
     }
