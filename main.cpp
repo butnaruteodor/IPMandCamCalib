@@ -10,6 +10,8 @@
 #include "opencv2/core/utility.hpp"
 
 #include "ipm.h"
+#include "calc_arrays.h"
+#include "config.h"
 
 using namespace std;
 using namespace cv;
@@ -34,6 +36,7 @@ int readArray(int *arr, const char *filename);
 void undistort(uchar3 *inImage, uchar3 *outImage, int *map_x, int *map_y);
 void warpImage(uchar3 *inImage, uchar3 *outImage, int *uGrid, int *vGrid);
 int loaduvGrid(int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS]);
+int loaduvGridFromMatrix(int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS], const MatrixXd& uvGrd);
 int loadMappingArrays(int map_x[UV_GRID_COLS], int map_y[UV_GRID_COLS]);
 Mat warpImage(Mat inImage, int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS]);
 Mat createEmptyAlphaMat(int rows, int cols);
@@ -60,13 +63,36 @@ int main()
     }
 
         // Load uv grid from file
-    loadMappingArrays(uGridCpu, vGridCpu);
+    //loadMappingArrays(uGridCpu, vGridCpu);
+
+
+    CameraInfo cameraInfo;
+    IpmInfo ipmInfo;
+
+    cameraInfo.focalLengthX = (int)(IN_IMAGE_WIDTH/2.75)*6.45;
+    cameraInfo.focalLengthY = (int)(IN_IMAGE_HEIGHT/2.75)*3.63;
+    cameraInfo.opticalCenterX = IN_IMAGE_WIDTH/2;
+    cameraInfo.opticalCenterY = IN_IMAGE_HEIGHT/2;
+    cameraInfo.cameraHeight = 267;
+    cameraInfo.pitch=25.0;
+    cameraInfo.yaw = 0;
+    cameraInfo.roll = 0;
+
+    ipmInfo.inputWidth = IN_IMAGE_WIDTH;
+    ipmInfo.inputHeight = IN_IMAGE_HEIGHT;
+    ipmInfo.left = 5;
+    ipmInfo.right = IN_IMAGE_WIDTH - 5;
+    ipmInfo.top = 200;
+    ipmInfo.bottom = IN_IMAGE_HEIGHT-190;
+
+    MatrixXd uvGrd = GetMappingArrays(cameraInfo,ipmInfo);
+
+    loaduvGridFromMatrix(uGridCpu,vGridCpu,uvGrd);
 
     cudaMalloc((void **)&uGrid, UV_GRID_COLS * sizeof(int));
     cudaMemcpy(uGrid, uGridCpu, UV_GRID_COLS * sizeof(int), cudaMemcpyHostToDevice);
     cudaMalloc((void **)&vGrid, UV_GRID_COLS * sizeof(int));
     cudaMemcpy(vGrid, vGridCpu, UV_GRID_COLS * sizeof(int), cudaMemcpyHostToDevice);
-
 
     Mat frame;
     Mat outFrame;
@@ -203,6 +229,14 @@ int loaduvGrid(int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS])
         vGrid[j] = static_cast<int>(temp);
     }
     infile.close();
+    return 0;
+}
+int loaduvGridFromMatrix(int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS], const MatrixXd& uvGrd)
+{
+    for(int i = 0;i<UV_GRID_COLS;i++){
+        uGrid[i] = static_cast<int>(uvGrd(0,i));
+        vGrid[i] = static_cast<int>(uvGrd(1,i));
+    }
     return 0;
 }
 Mat createEmptyAlphaMat(int rows, int cols)
