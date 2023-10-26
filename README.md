@@ -114,18 +114,24 @@ First you should get started by trying out the demo
 ### Prerequisites
 
 Here are all the dependencies you will need:
-* cuda
+* cuda 10.1 or 10.2
+  
+  Follow the official documentation from NVIDIA [CUDA][CUDA-url]
+* gcc 8
   ```sh
-  npm install npm@latest -g
-  ```
-* gcc
-  ```sh
-  npm install npm@latest -g
+  sudo apt-get install gcc-8 g++-8
   ```
 * cmake
   ```sh
-  npm install npm@latest -g
+  sudo apt-get install cmake
   ```
+* eigen
+  ```sh
+  sudo apt install libeigen3-dev
+  ```
+* opencv (needed only for demo)
+  
+  Follow the official documentation [OpenCV][OpenCV-url]
 
 ### Installation
 1. Clone the repo
@@ -157,6 +163,7 @@ Here are all the dependencies you will need:
 
 - [ ] Add documentation
 - [ ] Add usage examples
+- [ ] Broader compatibility
 
 See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues).
 
@@ -206,6 +213,7 @@ Project Link: [https://github.com/butnaruteodor/IPMandCamCalib](https://github.c
 ## Acknowledgments
 
 * [IPM-master](https://github.com/JamesLiao714/IPM-master)
+* [Best-README-Template](https://github.com/othneildrew/Best-README-Template)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -226,3 +234,5 @@ Project Link: [https://github.com/butnaruteodor/IPMandCamCalib](https://github.c
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/teodor-butnaru/
 [IPM-master-url]: https://github.com/JamesLiao714/IPM-master
+[CUDA-url]: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
+[OpenCV-url]: https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html
