@@ -1,7 +1,7 @@
 #include "ipm.h"
 #include "calc_arrays.h"
-#include "config.h"
-#include "util.h"
+#include "../util/config.h"
+#include "../util/util.h"
 
 using namespace std;
 
@@ -25,15 +25,20 @@ int main()
         return 1; // or handle error appropriately
     }
 
-    readArray(undistXCpu, "mapping_arr/undistort_x.bin");
-    readArray(undistYCpu, "mapping_arr/undistort_y.bin");
+    int ret_x = readArray(undistXCpu, "undist_x.bin");
+    int ret_y = readArray(undistYCpu, "undist_y.bin");
+    if (ret_x == FAIL || ret_y == FAIL)
+    {
+        fprintf(stderr, "Failed to load undistort arrays. Do they exist?\nPerforming IPM without calibration.\n");
+        return 1;
+    }
 
     // In your program you would populate the cameraInfo and ipmInfo structs with your specific values
     CameraInfo cameraInfo;
     IpmInfo ipmInfo;
 
-    cameraInfo.focalLengthX = (int)(IN_IMAGE_WIDTH / 2.75) * 6.45;
-    cameraInfo.focalLengthY = (int)(IN_IMAGE_HEIGHT / 2.75) * 3.63;
+    cameraInfo.focalLengthX = (int)(IN_IMAGE_WIDTH / CAMERA_FOCAL_LENGTH) * CAMERA_SENSOR_WIDTH;
+    cameraInfo.focalLengthY = (int)(IN_IMAGE_HEIGHT / CAMERA_FOCAL_LENGTH) * CAMERA_SENSOR_HEIGHT;
     cameraInfo.opticalCenterX = IN_IMAGE_WIDTH / 2;
     cameraInfo.opticalCenterY = IN_IMAGE_HEIGHT / 2;
     cameraInfo.cameraHeight = CAMERA_HEIGHT;
@@ -72,7 +77,8 @@ int main()
     cv::namedWindow("Camera", cv::WINDOW_AUTOSIZE);
 
     std::cout << "Hit ESC to exit"
-              << "\n";
+              << "\n"
+              << "Hit s to save the final mapping arrays" << std::endl;
     while (true)
     {
         cv::Mat combined;
@@ -93,7 +99,7 @@ int main()
         cv::resize(frame, frame, cv::Size(OUT_IMAGE_WIDTH, OUT_IMAGE_HEIGHT));
         cv::hconcat(frame, outFrame, combined);
 
-        cv::imshow("CSI Camera", combined);
+        cv::imshow("Camera", combined);
         int keycode = cv::waitKey(1) & 0xff;
         if (keycode == 27)
         {

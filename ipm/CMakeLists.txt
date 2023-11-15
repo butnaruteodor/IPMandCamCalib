@@ -38,8 +38,12 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 #link_directories(/usr/lib/aarch64-linux-gnu/tegra)
 
+# Include util folder
+set(UTIL_DIR ../util)
+include_directories(${UTIL_DIR})
+
 # Executable
-cuda_add_executable(IPM main.cpp ipm.cu calc_arrays.cpp util.cpp)
+cuda_add_executable(IPM main.cpp ipm.cu calc_arrays.cpp ${UTIL_DIR}/util.cpp)
 
 # Linking libraries
 target_link_libraries(IPM ${OpenCV_LIBS} Eigen3::Eigen)

@@ -1,6 +1,6 @@
 #pragma once
 // Platform
-#define PLATFORM 2 // The platform that the code is running on, Jetson(1) or x86(2)
+#define PLATFORM 2 // The platform that the code is running on, Jetson(1) or x64(2)
 
 // Inverse perspective mapping configs
 #define UV_GRID_COLS 524288  // Number of elements in a mapping array ie. 1024*512
@@ -10,10 +10,13 @@
 #define IN_IMAGE_WIDTH 1920  // The width of the input image
 #define IN_IMAGE_HEIGHT 1080 // The height of the input image
 
-#define CAMERA_HEIGHT 267 // The height of the camera in cm
-#define CAMERA_PITCH 13.0 // The pitch of the camera in degrees
-#define CAMERA_YAW 0      // The yaw of the camera in degrees
-#define CAMERA_ROLL 0     // The roll of the camera in degrees
+#define CAMERA_HEIGHT 267         // The height of the camera in cm
+#define CAMERA_PITCH 13.0         // The pitch of the camera in degrees
+#define CAMERA_YAW 0              // The yaw of the camera in degrees
+#define CAMERA_ROLL 0             // The roll of the camera in degrees
+#define CAMERA_FOCAL_LENGTH 2.75  // The focal length of the camera in mm
+#define CAMERA_SENSOR_WIDTH 6.45  // The width of the camera sensor in mm
+#define CAMERA_SENSOR_HEIGHT 3.63 // The height of the camera sensor in mm
 
 // Here you basically crop the image to the area that you are interested in
 // Considering that a 1920x1080 image is used, the following values will crop the original image before the ipm algorithm is applied
@@ -27,3 +30,5 @@
 #define CAMERA_ID 0 // The id of the camera that will be used
 
 // Camera calibration configs
+
+#define UNDIST_ARR_LOCATION "ipm/undistort_arrays/undistort_arr.txt" // The location of the undistort arrays

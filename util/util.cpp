@@ -86,12 +86,6 @@ int loaduvGridFromMatrix(int uGrid[UV_GRID_COLS], int vGrid[UV_GRID_COLS], const
     }
     return 0;
 }
-Mat createEmptyAlphaMat(int rows, int cols)
-{
-    Mat mat(rows, cols, CV_8UC4, Scalar(0, 0, 0, 0));
-
-    return mat;
-}
 void toUchar3(Mat frame, uchar3 *output, int width, int height)
 {
     for (int i = 0; i < height; ++i)
@@ -166,7 +160,6 @@ int readArray(int *arr, const char *filename)
 
     if (!infile || arr == nullptr)
     {
-        std::cout << "Cannot open file.\n";
         return 1;
     }
     float temp;
@@ -179,6 +172,17 @@ int readArray(int *arr, const char *filename)
 
     infile.close();
     return 0;
+}
+void getMapFromMat(int *arr, Mat map)
+{
+    for (int i = 0; i < 1080; i++)
+    {
+        int *row_ptr = map.ptr<int>(i);
+        for (int j = 0; j < 1920; j++)
+        {
+            arr[i * 1920 + j] = row_ptr[j];
+        }
+    }
 }
 int saveArray(int *arr, int size, const std::string &filename)
 {
