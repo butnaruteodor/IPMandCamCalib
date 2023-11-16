@@ -88,7 +88,7 @@
 <!--
 [![Product Name Screen Shot][product-screenshot]](https://example.com)
 -->
-I've had problems with finding a performant algorithm which calibrates the camera and performs inverse perspective mapping to get the bird eye view variant of an image to use in my self driving car project so I made this repository to help other people that want a high performance camera calibration and/or ipm algorithm.
+I've had problems with finding a fast algorithm which calibrates the camera and performs inverse perspective mapping to get the bird eye view variant of an image to use in my self driving car project so I made this repository to help other people that want a high performance camera calibration and/or ipm algorithm.
 
 The IPM code is heavily inspired from [IPM-master][IPM-master-url] by JamesLiao so huge thanks for his work!
 
@@ -138,13 +138,12 @@ Here are all the dependencies you will need:
    ```sh
    git clone https://github.com/butnaruteodor/IPMandCamCalib.git
    ```
-2. Build the project
+2. Build the demos
    ```sh
-   chmod +x build.sh && ./build.sh
+   chmod +x build_ipm.sh && ./build_ipm.sh
    ```
-3. Run the demo
    ```sh
-   ./IPM
+   chmod +x build_calib.sh && ./build_calib.sh
    ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -156,7 +155,45 @@ Here are all the dependencies you will need:
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+First you should calibrate the camera, if you don't need calibration then you can only run the IPM demo.
+1. Camera Calibration
+   
+   With the camera calibration demo you can manually undistort your camera by finetunning the distortion coefficients.
+   
+   a) First you will need some checkerboard images taken with the camera from various angles, with these we estimate the camera matrix. Place the images in calib/Images
+   
+   b) You will need an image which you will undistort(i suggest to use another checkerboard image parallel to the camera and that fits as perfectly as possible in the camera frame
+   because the distortion effects will be easily visible). The image to undistort can be placed directly in the calib folder but dont forget to rename the path to the image
+   https://github.com/butnaruteodor/IPMandCamCalib/blob/937f03fa9f4fe4bd17800a28bd7cb578bdbec7fe/calib/main.cpp#L13
 
+   c) Now you can run the CALIB executable from inside the IPMandCamCalib folder like this:
+   ```sh
+   ./build/calib/CALIB
+   ```
+   If you press s you will save the mapping arrays which you will use for the ipm algorithm
+   
+   If you press Escape you will close the app
+   
+2. Inverse Perspective Mapping
+
+   a) If you want camera calibration you should place the generated .bin files in the ipm folder, if not skip this
+
+   b) You will need to modify the config.h according to your use case
+
+   c) Run the IPM executable to see the result
+   ```sh
+   ./build/ipm/IPM
+   ```
+   If you press s you will save the mapping arrays which you can use in your own application
+
+3. Your own application
+
+   The only things you will need are the mapping arrays and the cuda kernel code inside ipm/ specifically the warpImageK function, you will need to allocate gpu memory for the input, output
+   and mapping arrays, you can check out the main code of the ipm demo
+
+   ```c_cpp
+   
+   ```
 
 <!-- ROADMAP -->
 ## Roadmap
